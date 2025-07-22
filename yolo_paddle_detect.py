@@ -68,6 +68,23 @@ class YoloPaddleDetctorCRNN:
 
         return results
     
+    def _draw_ploygon(self,image,ploy):
+        """
+        绘制多边形 (原函数，保持兼容性)
+        """
+        cv2.polylines(image, [ploy], True, (0, 0, 255), 2)
+        return image
+    
+    def _draw_text_polygon(self,image,poly):
+        """
+        绘制文字检测多边形 (绿色)
+        Args:
+            image: 输入图像
+            poly: 多边形坐标点，格式为numpy数组
+        """
+        cv2.polylines(image, [poly], True, (0, 255, 0), 2)
+        return image
+
     def _detect_text(self,roi_img):
         """
         OCR 车牌文字检测
@@ -147,28 +164,52 @@ class YoloPaddleDetctorCRNN:
             plate_results = self._detect_plate(image)
             for plate_result in plate_results:
                 bbox = plate_result['bbox']
+                x1, y1, x2, y2 = bbox
                 roi_img = self._get_roi_img(image,bbox)
-                # x1,y1,x2,y2 = bbox
-                # roi_img = image[y1:y2,x1:x2]
+                
                 text_boxes = self._detect_text(roi_img)
                 if len(text_boxes) == 1: # 只检测到一段文字
                     text_box = text_boxes[0]
-                    text_roi = self._get_roi_img(image,text_box['bbox'])
+                    # 将ROI坐标转换为全图坐标
+                    roi_bbox = text_box['bbox']
+                    global_bbox = [roi_bbox[0] + x1, roi_bbox[1] + y1, 
+                                   roi_bbox[2] + x1, roi_bbox[3] + y1]
+                    text_roi = self._get_roi_img(roi_img, text_box['bbox'])
                     text = self._crnn_recognize(text_roi)
+                    
+                    # 将多边形坐标转换为全图坐标
+                    global_poly = [[pt[0] + x1, pt[1] + y1] for pt in text_box['poly']]
+                    
                     plate_recong_results.append({
                         'text':text,
                         'bbox':bbox,
+                        'text_box':[global_poly],
+                        'text_bbox': [global_bbox],  # 添加全图坐标的文字边界框
                     })
                 elif len(text_boxes) > 1: # 双层车牌的情况
                     text_all = ""
+                    text_box_list = []
+                    text_bbox_list = []
                     for text_box in text_boxes:
-                        text_roi = self._get_roi_img(image,text_box['bbox'])
+                        # 将ROI坐标转换为全图坐标
+                        roi_bbox = text_box['bbox']
+                        global_bbox = [roi_bbox[0] + x1, roi_bbox[1] + y1, 
+                                       roi_bbox[2] + x1, roi_bbox[3] + y1]
+                        text_roi = self._get_roi_img(roi_img, text_box['bbox'])
                         text = self._crnn_recognize(text_roi)
                         text_all += text
-                        plate_result.append({
-                            'text':text,
-                            'text_box':text_box,
-                        })
+                        
+                        # 将多边形坐标转换为全图坐标
+                        global_poly = [[pt[0] + x1, pt[1] + y1] for pt in text_box['poly']]
+                        text_box_list.append(global_poly)
+                        text_bbox_list.append(global_bbox)
+                    
+                    plate_recong_results.append({
+                        'text':text_all,
+                        'bbox':bbox,
+                        'text_box':text_box_list,
+                        'text_bbox': text_bbox_list,  # 添加全图坐标的文字边界框
+                    })
                 else:
                     print("未检测到车牌文字")
         except Exception as e:
@@ -197,12 +238,33 @@ class YoloPaddleDetctorCRNN:
             bbox = plate_result['bbox']
             x1,y1,x2,y2 = bbox
             text = plate_result['text']
-            cv2.rectangle(image,(x1,y1),(x2,y2),(0,0,255),2) #画框
-            labelSize = cv2.getTextSize(text,cv2.FONT_HERSHEY_SIMPLEX,0.5,1) #获得字体的大小
-            if x1+labelSize[0][0]>image.shape[1]:                 #防止显示的文字越界
+            
+            # 绘制车牌边界框 (红色)
+            cv2.rectangle(image,(x1,y1),(x2,y2),(0,0,255),2) 
+            
+            # 绘制车牌识别文字
+            labelSize = cv2.getTextSize(text,cv2.FONT_HERSHEY_SIMPLEX,0.5,1) 
+            if x1+labelSize[0][0]>image.shape[1]:                 
                 x1=int(image.shape[1]-labelSize[0][0])
-            image = cv2ImgAddText(image,text,x1,int(y1-round(1.6*labelSize[0][1])),(0,0,0),21) #添加文字
-        
+            image = cv2ImgAddText(image,text,x1,int(y1-round(1.6*labelSize[0][1])),(0,0,0),21)
+            
+            # 绘制文字检测多边形 (绿色)
+            if 'text_box' in plate_result and plate_result['text_box']:
+                for text_box in plate_result['text_box']: 
+                    if text_box and len(text_box) >= 4:
+                        # 将坐标转换为numpy数组并确保是整数
+                        poly_points = np.array(text_box, dtype=np.int32)
+                        # 重新整形以适应cv2.polylines的要求
+                        if poly_points.shape == (4, 2):
+                            poly_points = poly_points.reshape((-1, 1, 2))
+                        image = self._draw_text_polygon(image, poly_points)
+            
+            # 绘制文字边界框 (蓝色，用于调试)
+            if 'text_bbox' in plate_result and plate_result['text_bbox']:
+                for text_bbox in plate_result['text_bbox']:
+                    if text_bbox and len(text_bbox) == 4:
+                        tx1, ty1, tx2, ty2 = [int(coord) for coord in text_bbox]
+                        cv2.rectangle(image, (tx1, ty1), (tx2, ty2), (255, 0, 0), 1)
 
         return image
     
@@ -221,8 +283,8 @@ class YoloPaddleDetctorCRNN:
             plate_results = self.plate_recognize(image)
             image = self._draw_plate_result(image,plate_results)
             cv2.imwrite(os.path.join(output_dir,img_name),image)
-            print(f"车牌识别结果已保存到{output_dir}")
-            # cv2.imshow("plate_result",image)
+            print(f"车牌识别结果已保存到{output_dir}: {img_name}")
+            # cv2.imshow("plate_result",image)  # 已注释以避免显示问题
             # cv2.waitKey(0)
 
 
@@ -250,6 +312,7 @@ if __name__ == "__main__":
         print(f"{args.img_dir}车牌识别结果：{plate_results}")
         cv2.imwrite(os.path.join(args.output_dir,os.path.basename(args.img_dir)),image)
         print(f"车牌识别结果已保存到{args.output_dir}")
-        cv2.imshow("plate_result",image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        print("注意：已去除图像显示功能以避免显示错误，请查看保存的图像文件")
+        # cv2.imshow("plate_result",image)  # 注释掉以避免Qt显示问题
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
