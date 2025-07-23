@@ -21,7 +21,8 @@ def allFilePath(rootPath,allFIleList):
             allFilePath(os.path.join(rootPath,temp),allFIleList)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device("cpu")
 color=['黑色','蓝色','绿色','白色','黄色']    
-plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
+# plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
+plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危防0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
 mean_value,std_value=(0.588,0.193)
 def decodePlate(preds):
     pre=0
@@ -92,28 +93,49 @@ def init_model(device,model_path,is_color = False):
     model.eval()
     return model
 
+def batch_plate_rec(img_dir,output_dir,model_path,is_color=False):
+    os.makedirs(output_dir,exist_ok=True)
+    model = init_model(device,model_path,is_color=is_color)
+    
+    rec_num = 0
+    img_list = os.listdir(img_dir)
+    for img_name in img_list:
+        img_path = os.path.join(img_dir,img_name)
+        
+        img = cv2.imread(img_path)
+        plate,prob= get_plate_result(img,device,model,is_color=is_color)
+        cv2.imwrite(os.path.join(output_dir,f"{plate}_{rec_num}.jpg"),img) 
+        rec_num += 1
+        print(f"已识别：{rec_num}，识别结果：{plate}")
+        # print(plate,img_path)
+        
+
 # model = init_model(device)
 if __name__ == '__main__':
-   model_path = r"../weights/plate_rec_color.pth"
-   image_path ="16685ffc91f809a3c8c45c50ef7e8c6.png"
-   testPath = r"D:\Code\Python\github-project\yolov8-plate-master\imgs"
-   fileList=[]
-   allFilePath(testPath,fileList)
-#    result = get_plate_result(image_path,device)
-#    print(result)
+   model_path = "./weights/checkpoint_85_acc_0.9509.pth"
+   img_dir = "/expdata/givap/dataset/test_data/unstand_plate/b1"
+   output_dir = "./data/output_plate_rec"
    is_color = False
-   model = init_model(device,model_path,is_color=is_color)
-   right=0
-   begin = time.time()
+   batch_plate_rec(img_dir,output_dir,model_path,is_color=is_color)
+#    image_path ="16685ffc91f809a3c8c45c50ef7e8c6.png"
+#    testPath = r"D:\Code\Python\github-project\yolov8-plate-master\imgs"
+#    fileList=[]
+#    allFilePath(testPath,fileList)
+# #    result = get_plate_result(image_path,device)
+# #    print(result)
+#    is_color = False
+#    model = init_model(device,model_path,is_color=is_color)
+#    right=0
+#    begin = time.time()
    
-   for imge_path in fileList:
-        img=cv2.imread(imge_path)
-        if is_color:
-            plate,_,plate_color,_=get_plate_result(img,device,model,is_color=is_color)
-            print(plate)
-        else:
-            plate,_=get_plate_result(img,device,model,is_color=is_color)
-            print(plate,imge_path)
+#    for imge_path in fileList:
+#         img=cv2.imread(imge_path)
+#         if is_color:
+#             plate,_,plate_color,_=get_plate_result(img,device,model,is_color=is_color)
+#             print(plate)
+#         else:
+#             plate,_=get_plate_result(img,device,model,is_color=is_color)
+#             print(plate,imge_path)
         
   
         
