@@ -22,7 +22,8 @@ def allFilePath(rootPath,allFIleList):
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device("cpu")
 color=['黑色','蓝色','绿色','白色','黄色']    
 # plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
-plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危防0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
+# plateName=r"#京沪津渝冀晋蒙辽吉黑苏浙皖闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学警港澳挂使领民航危防0123456789ABCDEFGHJKLMNPQRSTUVWXYZ险品"
+plateName=r"#0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 mean_value,std_value=(0.588,0.193)
 def decodePlate(preds):
     pre=0
@@ -112,9 +113,9 @@ def batch_plate_rec(img_dir,output_dir,model_path,is_color=False):
 
 # model = init_model(device)
 if __name__ == '__main__':
-   model_path = "./weights/checkpoint_85_acc_0.9509.pth"
-   img_dir = "/expdata/givap/dataset/test_data/unstand_plate/b1"
-   output_dir = "./data/output_plate_rec"
+   model_path = "./weights/checkpoint_94_acc_0.9589.pth"
+   img_dir = "/expdata/givap/dataset/test_data/unstand_plate/b2/carno"
+   output_dir = "./data/output_plate_rec_b2"
    is_color = False
    batch_plate_rec(img_dir,output_dir,model_path,is_color=is_color)
 #    image_path ="16685ffc91f809a3c8c45c50ef7e8c6.png"
