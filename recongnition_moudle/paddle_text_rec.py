@@ -162,39 +162,33 @@ class PaddleOCRRec:
         return cls._instance
 
     def __init__(self,model_path):
-        self.ppocr = PaddleOCR(
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            text_recognition_model_dir = model_path)
+
         # 初始化准确率计算器
         self.accuracy_calculator = AccuracyCalculator()
         self.model_rec = TextRecognition(model_dir=model_path)
 
     def recognize(self,image_path):
-        ppocr_result = self.ppocr.predict(input=image_path)
-        
+        # ppocr_result = self.ppocr.predict(input=image_path)
+        ppocr_result = self.model_rec.predict(input=image_path)
         
         # 提取有用信息
         if ppocr_result and len(ppocr_result) > 0:
             ocr_result = ppocr_result[0]  # 取第一个结果
             
             # 提取文字、置信度和坐标信息
-            texts = ocr_result.get('rec_texts', [])
-            scores = ocr_result.get('rec_scores', [])
-            boxes = ocr_result.get('rec_boxes', [])
+            text = ocr_result.get('rec_text', [])
+            score = ocr_result.get('rec_score', [])
+            # boxes = ocr_result.get('rec_boxes', [])
             
             # 组织返回结果
-            results = []
-            for i in range(len(texts)):
-                item = {
-                    'text': texts[i] if i < len(texts) else '',
-                    'confidence': scores[i] if i < len(scores) else 0.0,
-                    'box': boxes[i].tolist() if i < len(boxes) else []
-                }
-                results.append(item)
+            result = {
+                'text': text if text else '',
+                'confidence': score if score else 0.0,
+                # 'box': boxes[i].tolist() if i < len(boxes) else []
+            }
+
             
-            return results
+            return result
         else:
             return []
 
@@ -230,10 +224,10 @@ class PaddleOCRRec:
             
             print(f"识别时间：{t2-t1:.3f}秒 - {filename}")
             
-            if result and result[0]['text']:
+            if result:
                 ocr_result_num += 1
-                predicted_text = result[0]['text']
-                confidence = result[0]['confidence']
+                predicted_text = result['text']
+                confidence = result['confidence']
                 
                 # 添加到准确率统计
                 if enable_accuracy_stats:
@@ -248,7 +242,7 @@ class PaddleOCRRec:
                     match_status = "✓" if accuracy_detail['exact_match'] else "✗"
                     print(f"  {match_status} 标签: {accuracy_detail['ground_truth']} | 字符准确率: {accuracy_detail['char_accuracy']:.2%}")
                 
-                cv2.imwrite(os.path.join(output_dir,new_image_name),image)
+                # cv2.imwrite(os.path.join(output_dir,new_image_name),image)
             else:
                 no_result_num += 1
                 print(f"未识别到文字：{filename}")
